@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import AstronautList from './AstronautList';
 import IssMap from './IssMap';
 import ThemeToggle from './ThemeToggle';
 import { ISS_ICON_SVG } from '../lib/issIcon';
@@ -94,32 +95,36 @@ export default function IssTracker() {
           <IssMap latitude={position?.latitude} longitude={position?.longitude} />
         </section>
 
-        <aside className="panel" aria-label="Messwerte der ISS">
-          <dl className="stats">
-            <div className="stat">
-              <dt>Breitengrad</dt>
-              <dd>{formatCoordinate(position?.latitude, 'N', 'S')}</dd>
-            </div>
-            <div className="stat">
-              <dt>Längengrad</dt>
-              <dd>{formatCoordinate(position?.longitude, 'O', 'W')}</dd>
-            </div>
-            <div className="stat">
-              <dt>Höhe</dt>
-              <dd>{formatNumber(position?.altitude, 'km')}</dd>
-            </div>
-            <div className="stat">
-              <dt>Geschwindigkeit</dt>
-              <dd>{formatNumber(position?.velocity, 'km/h')}</dd>
-            </div>
-          </dl>
+        <div className="app__aside">
+          <aside className="panel" aria-label="Messwerte der ISS">
+            <dl className="stats">
+              <div className="stat">
+                <dt>Breitengrad</dt>
+                <dd>{formatCoordinate(position?.latitude, 'N', 'S')}</dd>
+              </div>
+              <div className="stat">
+                <dt>Längengrad</dt>
+                <dd>{formatCoordinate(position?.longitude, 'O', 'W')}</dd>
+              </div>
+              <div className="stat">
+                <dt>Höhe</dt>
+                <dd>{formatNumber(position?.altitude, 'km')}</dd>
+              </div>
+              <div className="stat">
+                <dt>Geschwindigkeit</dt>
+                <dd>{formatNumber(position?.velocity, 'km/h')}</dd>
+              </div>
+            </dl>
 
-          <p className="panel__footer">
-            {position
-              ? `Letzte Aktualisierung: ${new Date(position.timestamp * 1000).toLocaleTimeString('de-DE')} Uhr`
-              : 'Noch keine Daten empfangen.'}
-          </p>
-        </aside>
+            <p className="panel__footer">
+              {position
+                ? `Letzte Aktualisierung: ${new Date(position.timestamp * 1000).toLocaleTimeString('de-DE')} Uhr`
+                : 'Noch keine Daten empfangen.'}
+            </p>
+          </aside>
+
+          <AstronautList />
+        </div>
       </main>
     </div>
   );

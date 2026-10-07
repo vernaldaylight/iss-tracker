@@ -16,3 +16,7 @@ npm-debug.log*
 .agents/
 .claude/skills/
 skills-lock.json
+
+# Persönliche Claude-Code-Einstellungen, Hooks und Hook-Logs (nicht Teil des Projekts)
+.claude/settings.local.json
+.claude/hooks/
