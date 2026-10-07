@@ -11,3 +11,8 @@ build/
 npm-debug.log*
 
 .vercel
+
+# Installierte Agent-Skills (lokales Werkzeug, nicht Teil des Projekts)
+.agents/
+.claude/skills/
+skills-lock.json
