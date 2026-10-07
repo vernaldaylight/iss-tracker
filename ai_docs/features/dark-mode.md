@@ -14,7 +14,7 @@ Der Tracker ist heute **durchgehend dunkel** — es gibt kein zweites Farbschema
 |---|---|
 | Modi | Drei: **Hell / Dunkel / System** |
 | Standard beim Erstbesuch | **Systemeinstellung folgen** |
-| Kartenkacheln | Im dunklen Modus **dunkle Kacheln**, im hellen Modus OSM |
+| Kartenkacheln | Im dunklen Modus **dunkle Kacheln** (Esri World Dark Gray Base), im hellen Modus OSM |
 | Persistenz | `localStorage`, Schlüssel `iss-theme`, Werte `light` \| `dark` \| `system` |
 
 ## 3. Ausgangslage im Code
@@ -126,15 +126,21 @@ Die Reihenfolge ist so gewählt, dass nach jedem Schritt etwas Prüfbares existi
 
 ### Schritt 1 — Kachelquelle in `app/components/IssMap.jsx`
 
-Dunkle Kacheln von CARTO ergänzen, Attribution **muss** mitwandern:
+Dunkle Kacheln ergänzen, Attribution **muss** mitwandern:
 
 ```
 hell:  https://tile.openstreetmap.org/{z}/{x}/{y}.png
        © OpenStreetMap-Mitwirkende
 
-dunkel: https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png
-        © OpenStreetMap-Mitwirkende © CARTO
+dunkel: https://services.arcgisonline.com/ArcGIS/rest/services/
+          Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}
+        © Esri, HERE, Garmin, © OpenStreetMap-Mitwirkende
 ```
+
+Zwei Fallen bei der dunklen URL:
+
+- **Esri gibt `y` vor `x` an.** Das Muster ist *nicht* das der OSM-URL. Wer die Koordinaten vertauscht, bekommt HTTP 200 und eine Kachel — nur eben von der falschen Stelle der Welt; der Fehler fällt beim Draufschauen kaum auf.
+- **`maxNativeZoom: 16` setzen.** Der Dienst liefert nur bis Stufe 16. Ab Stufe 17 antwortet er mit HTTP 200 und einer konstanten 2521-Byte-Kachel ohne Inhalt (nachgemessen). Ohne `maxNativeZoom` fordert Leaflet diese Stufen an und die Karte wird beim Hineinzoomen leer. Mit der Angabe skaliert Leaflet die Stufe-16-Kacheln hoch (unscharf, aber lesbar).
 
 **Wichtig:** Die Karte wird heute in einem Effekt mit `[]`-Dependencies genau **einmal** aufgebaut. Ein Theme-Wechsel darf die Karte **nicht** neu erzeugen — das würde Zoomstufe und Ausschnitt der Nutzerin verwerfen. Stattdessen:
 
@@ -201,7 +207,7 @@ Alle verbliebenen harten Farbwerte in `app/globals.css` durch Tokens ersetzen (a
 
 ## 10. Akzeptanzkriterien („Fertig, wenn …")
 
-Stand der Prüfung: automatisiert in echtem Chrome (headless) gegen den Dev-Server geprüft, 55 Einzelprüfungen, alle bestanden. Die Systemeinstellung wurde dabei über `Emulation.setEmulatedMedia` in beide Richtungen umgestellt — dasselbe Verfahren wie das Umschalten im Betriebssystem.
+Stand der Prüfung: automatisiert in echtem Chrome (headless) gegen den Dev-Server geprüft, 67 Einzelprüfungen, alle bestanden. Die Systemeinstellung wurde dabei über `Emulation.setEmulatedMedia` in beide Richtungen umgestellt — dasselbe Verfahren wie das Umschalten im Betriebssystem. Zusätzlich wurden die gerenderten Karten in beiden Schemata und bei maximalem Zoom als Bild angesehen (siehe Abschnitt 12).
 
 - [x] Drei Modi im Kopfbereich wählbar; jeder wirkt sofort, ohne Neuladen.
 - [x] Nach hartem Neuladen ist die gewählte Variante weiterhin aktiv.
@@ -243,9 +249,13 @@ Anmerkungen zur Prüfung:
 - **Helle Farbwerte (Abschnitt 6.2):** Kontrast geprüft. `--muted` musste von `#5b6b85` auf **`#57657e`** nachgedunkelt werden — im eingefärbten Hintergrund des Fehlerhinweises lag der Sekundärtext sonst bei 4,49:1, knapp unter der Schwelle. Schlechtester Fall jetzt **4,89:1**, alle Textpaare in beiden Schemata ≥ 4,8:1.
 - **Schalter:** nur Text, keine Symbole. Drei kurze Wörter passen auch bei 375 px ohne Überlauf in den Kopfbereich.
 - **F9 (Tab-Synchronisierung):** umgesetzt über den `storage`-Listener im Provider.
+- **Kachelquelle gewechselt: CARTO → Esri.** Der erste Entwurf nutzte CARTO. Im Betrieb zeigte die dunkle Karte jedoch auf **jeder** Kachel ein Wasserzeichen „API KEY REQUIRED": CARTO liefert ohne Key nur noch ein 2513-Byte-Platzhalterbild aus, und ein Key ist laut PRD („Keine API-Keys oder Secrets im Code") ausgeschlossen. Ersetzt durch **Esri World Dark Gray Base**, ebenfalls ohne Key. Die Attribution wurde mitgezogen.
+- **Kacheln werden inhaltlich geprüft, nicht nur nach URL.** Der Fehler oben erreichte die Produktion, weil die Prüfung nur Hostnamen und „HTTP 200 + Bild" kontrollierte. Die Prüfung vergleicht jetzt drei Kacheln derselben Stufe an weit entfernten Orten (München, Südpazifik, Argentinien) — ein Platzhalter wäre für alle Koordinaten dasselbe Bild. Eine **Byte-Schwelle** taugt dafür nicht: CARTOs Platzhalter hat 2513 Byte, Esris leerer ab Stufe 17 hat 2521 Byte, eine echte leere dunkle Meeres-Kachel kann aber 2419 Byte groß sein.
+- **Der Abruf muss in der Seite passieren.** OpenStreetMap blockiert Anfragen ohne Browser-Kennung und antwortet mit HTTP 200 und einem 6987-Byte-Bild „403 Access blocked" — für jede Koordinate identisch. Ein Abruf aus Node heraus hätte das als Platzhalter gemeldet und die intakte Karte fälschlich verworfen.
 - **F10 (`theme-color` für die Browserleiste):** **nicht** umgesetzt. Der Wert müsste ebenfalls vor dem ersten Paint gesetzt werden, sonst färbt sich die Browserleiste sichtbar nach. Das ist mit dem jetzigen Inline-Skript nicht sauber zu haben und war als „Kann" markiert.
 
 **Weiterhin offen:**
 
+- **Zoomstufe 19 ist im dunklen Schema unscharf.** `MAX_ZOOM` steht auf 19 (Bestandswert, im hellen Schema liefert OSM diese Stufe nativ). Esri liefert im dunklen Schema nur bis 16, darüber skaliert Leaflet hoch — nachgesehen: bei Stufe 19 über München sind Straßen und Beschriftung noch erkennbar, aber deutlich weich. Zu entscheiden ist, ob `MAX_ZOOM` im dunklen Schema auf 17 gesenkt wird (scharf bis zur nativen Grenze, dafür weniger Zoom) oder ob die Unschärfe in Kauf genommen wird, damit beide Schemata gleich weit zoomen. Die aktuelle Umsetzung lässt 19 für beide.
 - **Rahmen unter 3:1.** Die Haarlinien um Karte, Panel und Messwert-Kacheln erreichen nur **1,34:1** (hell) bzw. **1,35:1** (dunkel) statt der in Abschnitt 8 genannten 3:1. Der dunkle Wert ist der unveränderte Bestandswert aus der Zeit vor diesem Feature — die hellen Werte wurden bewusst parallel dazu gewählt. Ein kontraststarker Rahmen würde beide Schemata deutlich schwerer wirken lassen und den Bestand ändern, den Abschnitt 6.1 unverändert übernehmen sollte. Zu entscheiden ist, ob die 3:1-Vorgabe aus Abschnitt 8 auf dekorative Flächenrahmen überhaupt angewendet werden soll.
 - Ob der Startwert später von `system` auf `dunkel` gedreht wird, falls die Rückmeldung zu hell empfunden wird. Die Entscheidung aus Abschnitt 2 gilt für diese Umsetzung.
