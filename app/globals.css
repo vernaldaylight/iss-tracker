@@ -1,0 +1,355 @@
+/* Farbschema ------------------------------------------------------------- */
+
+/* Zwei Token-Sets. Welches gilt, entscheidet das Attribut data-theme am
+   <html>-Element; gesetzt wird es vom Inline-Skript in app/layout.jsx noch vor
+   dem ersten Paint und danach vom ThemeProvider. :root ist deshalb nur der
+   Fallback für den unwahrscheinlichen Fall, dass gar kein Skript läuft. */
+
+:root {
+  color-scheme: light;
+
+  --bg: #f6f8fc;
+  --surface: #ffffff;
+  --surface-2: #eef2f8;
+  --border: #d7dfeb;
+  --text: #101828;
+  /* Kontrastgeprüft: dunkler als der erste Entwurf (#5b6b85), weil der
+     Sekundärtext im eingefärbten Fehlerhinweis sonst bei 4,49:1 läge.
+     Schlechtester Fall jetzt 4,89:1 (Fläche des Fehlerhinweises). */
+  --muted: #57657e;
+  --accent: #0b62d6;
+  --ok: #0e7c46;
+  --warn: #b25e00;
+  --map-bg: #e8edf5;
+  --marker-shadow: rgba(16, 24, 40, 0.35);
+  --radius: 12px;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0b1220;
+  --surface: #131c2e;
+  --surface-2: #1b2740;
+  --border: #26334d;
+  --text: #eef3fb;
+  --muted: #9aabc7;
+  --accent: #4da3ff;
+  --ok: #35d07f;
+  --warn: #ffb020;
+  --map-bg: #0f1728;
+  --marker-shadow: rgba(0, 0, 0, 0.6);
+}
+
+/* Ohne JavaScript gibt es kein data-theme — dann soll wenigstens die
+   Systemeinstellung greifen. Die Werte sind eine Kopie des dunklen Sets oben
+   und müssen dort mitgezogen werden; CSS kann zwei Selektoren nicht über eine
+   Media Query hinweg zusammenfassen. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+
+    --bg: #0b1220;
+    --surface: #131c2e;
+    --surface-2: #1b2740;
+    --border: #26334d;
+    --text: #eef3fb;
+    --muted: #9aabc7;
+    --accent: #4da3ff;
+    --ok: #35d07f;
+    --warn: #ffb020;
+    --map-bg: #0f1728;
+    --marker-shadow: rgba(0, 0, 0, 0.6);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100dvh;
+  padding: 20px;
+}
+
+/* Kopfbereich ------------------------------------------------------------ */
+
+.app__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.app__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Status-Pille und Farbschema-Schalter bilden auf schmalen Bildschirmen
+   gemeinsam eine umbrechende Zeile. */
+.app__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-2);
+}
+
+.brand-mark svg {
+  width: 28px;
+  height: 28px;
+}
+
+.app__header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
+}
+
+.app__subtitle {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.status--live::before {
+  background: var(--ok);
+}
+.status--warn::before {
+  background: var(--warn);
+}
+
+/* Farbschema-Schalter ---------------------------------------------------- */
+
+.theme-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.theme-toggle__option {
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.theme-toggle__option:hover {
+  color: var(--text);
+}
+
+.theme-toggle__option[aria-pressed='true'] {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* Der Fokusring wird nicht entfernt, nur auf die Tastaturbedienung beschränkt. */
+.theme-toggle__option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Fehlerhinweis ---------------------------------------------------------- */
+
+.alert {
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.alert__detail {
+  color: var(--muted);
+}
+
+/* Hauptbereich ----------------------------------------------------------- */
+
+.app__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+.app__map {
+  min-height: 420px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.map {
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+}
+
+.iss-marker {
+  background: transparent;
+  border: 0;
+}
+
+.iss-marker svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 2px 5px var(--marker-shadow));
+}
+
+/* Messwerte -------------------------------------------------------------- */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+}
+
+.stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.stat dt {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.stat dd {
+  margin: 0;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.panel__footer {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* Leaflet an das jeweilige Layout anpassen ------------------------------- */
+
+/* --map-bg statt eines festen Werts: beim Wechsel des Kachelsatzes liegt
+   darunter sonst kurz ein heller oder dunkler Fremdkörper. */
+.leaflet-container {
+  background: var(--map-bg);
+  font: inherit;
+}
+
+.leaflet-control-attribution {
+  background: color-mix(in srgb, var(--bg) 80%, transparent) !important;
+  color: var(--muted) !important;
+}
+
+.leaflet-control-attribution a {
+  color: var(--accent) !important;
+}
+
+.leaflet-bar a {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-bottom-color: var(--border) !important;
+}
+
+.leaflet-bar a:hover {
+  background: var(--surface-2) !important;
+}
+
+/* Schmale Bildschirme ---------------------------------------------------- */
+
+@media (max-width: 720px) {
+  .app {
+    padding: 14px;
+  }
+
+  .app__body {
+    grid-template-columns: 1fr;
+  }
+
+  .app__map,
+  .map {
+    min-height: 320px;
+  }
+}
